@@ -19,7 +19,7 @@ object MopacParser extends SimpleExternalParserGenerator(
       )) :: Nil
   ),
   mainFileTypes = Seq("text/.*"),
-  mainFileRe = """ """.r,
+  mainFileRe = """MOPACMOPACMOPAC""".r,
   cmd = Seq(DefaultPythonInterpreter.python2Exe(), "${envDir}/parsers/mopac/parser/parser-mopac/MopacParser.py",
     "--uri", "${mainFileUri}", "${mainFilePath}"),
   resList = Seq(
