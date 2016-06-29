@@ -7,7 +7,7 @@ import sys
 import json
 
 
-class SampleContext(object):
+class MopacContext(object):
     """context for the sample parser"""
 
     def __init__(self):
@@ -26,27 +26,50 @@ class SampleContext(object):
         self.initialize_values()
 
 # description of the input
+
+# section_single_configuration_calculation
+sm_etot = SM(r"\s*TOTAL ENERGY\s*=\s*(?P<energy_total>[-+0-9.eEdD]+)\s*EV")
+sm_eigenvalues = SM(name='Eigenvalues',
+                    startReStr=r"\s*EIGENVALUES",
+                    endReStr=r"\s*NET ATOMIC CHARGES",
+                    sections=['section_eigenvalues'],
+                    subMatchers=[
+                        SM(r"\s*(?P<eigenvalues_values>[-+0-9.eEdD]+)",
+                           repeats=True)
+                    ])
+
+sm_energies = SM(name='Energies',
+                 startReStr=r"\s*SCF FIELD WAS ACHIEVED",
+                 sections=['section_single_configuration_calculation'],
+                 subMatchers=[sm_etot, sm_eigenvalues])
+
+# section_method
+
+# section_system
+
+# section_run
+#   program_information
+sm_version = SM(r"\s*\**\s*Version\s*(?P<program_version>[0-9a-zA-Z_.]*)")
+sm_header = SM(name='ProgramHeader',
+               startReStr=r"\s*\**\s*Cite this work as:\s*\**",
+               subMatchers=[sm_version])
+
+sm_run = SM(name='newRun',
+            startReStr=r"",
+            #forwardMatch=True,
+            required=True,
+            fixedStartValues={'program_name': 'mopac'},
+            sections=['section_run'],
+            subMatchers=[sm_header,
+                         sm_energies
+                        ])
+
 mainFileDescription = \
     SM(name='root',
-        weak=True,
-        startReStr="",
-        subMatchers=[
-        SM(name='newRun',
-           startReStr=r"\*",
-           repeats=True,
-           required=True,
-           forwardMatch=True,
-           sections=['section_run'],
-           subMatchers=[
-           SM(name='SinglePointEvaluation',
-              startReStr=r"\s*FINAL HEAT OF FORMATION",
-              repeats=False,
-              forwardMatch=True,
-              sections=['section_single_configuration_calculation'],
-              subMatchers=[
-              SM(r"\s*TOTAL ENERGY\s*=\s*(?P<energy_total>[-+0-9.eEdD]+)\s*EV")])
-                ])
-              ])
+       weak=True,
+       forwardMatch=True,
+       startReStr=r"",
+       subMatchers=[sm_run])
 
 # loading metadata from nomad-meta-info/meta_info/nomad_meta_info/fhi_aims.nomadmetainfo.json
 
@@ -59,5 +82,5 @@ metaInfoPath = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__f
 metaInfoEnv, warnings = loadJsonFile(filePath=metaInfoPath, dependencyLoader=None, extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS, uri=None)
 
 if __name__ == "__main__":
-    superContext = SampleContext()
+    superContext = MopacContext()
     mainFunction(mainFileDescription, metaInfoEnv, parserInfo, superContext=superContext)
