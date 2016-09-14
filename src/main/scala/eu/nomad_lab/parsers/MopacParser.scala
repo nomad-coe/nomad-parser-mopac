@@ -23,7 +23,7 @@ object MopacParser extends SimpleExternalParserGenerator(
   cmd = Seq(DefaultPythonInterpreter.pythonExe(), "${envDir}/parsers/mopac/parser/parser-mopac/parser.py",
     "--uri", "${mainFileUri}", "${mainFilePath}"),
   resList = Seq(
-    "parser-mopac/parser.py"
+    "parser-mopac/parser.py",
     "parser-mopac/setup_paths.py",
     "nomad_meta_info/public.nomadmetainfo.json",
     "nomad_meta_info/common.nomadmetainfo.json",
