@@ -14,15 +14,7 @@ class Reader:
             'hartree': units.Hartree,
             'kcal/angstrom': units.kcal / units.mol / units.Angstrom,
         }
-        # things to read
-#        section_run = ['program_name', 'program_version']
-#        section_system = ['atom_labels', 'atom_positions',
-#                          'configuration_periodic_dimentions',
-#                          'simulation_cell']
-#        section_eigenvalues = ['eigenvalues_values',
-#                               'eigenvalues_occupations']
-#        section_single_configuration_calculation = ['energy_total',
-#                                                    'atom_forces']
+
         with open(filename, 'r') as f:
             self.lines = f.readlines()
 
@@ -31,7 +23,7 @@ class Reader:
             'program_version':
             re.compile(r"\s*Version\s*(?P<program_version>[0-9.a-zA-Z]+)\s+"),
             'natoms':
-            re.compile(r"\s*Empirical\s*Formula:.*=\s*(?P<natoms>[1-9]+)"),
+            re.compile(r"\s*Empirical\s*Formula:.*=\s*(?P<natoms>[0-9]+)"),
             'positions_begin':
             re.compile(r"\s*ATOM\s*CHEMICAL\s*X"),
             'energy_total':
@@ -39,18 +31,49 @@ class Reader:
             'forces_begin':
             re.compile(r"\s*FINAL\s*POINT\s*AND\s*DERIVATIVES"),
             'eigenvalues_begin':
-            re.compile(r"\s*EIGENVALUES")}#        self.version =\
-#        re.compile(r"\s*Version\s*(?P<program_version>[0-9.a-zA-Z]+)\s+")
+            re.compile(r"\s*EIGENVALUES")}
         self.read()
 
-    def read(self):
-        # find number of atoms
+    def _rep2bl(self, j, fun=float):
+        """ Loop until a blank line is found, starting from line j.
+            Parameters:
+                j: starting line
+                fun: [fun(x) for x in line.split()]
+        """
+        x = []
+        while self.lines[j].rstrip():  # continue until a blank line
+            x += [fun(e) for e in self.lines[j].split()]
+            j += 1
+        return x
+
+    def get_index(self, pattern, istart=0, istop=None):
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
+        lines = self.lines[istart:istop]
+        for i, line in enumerate(lines):
+            m = re.search(pattern, line)
+            if m:
+                break
+        return istart + i
+
+    def get_input_parameter_line(self):
+        i = self.get_index(r"\s*\*\s*CALCULATION DONE:")
+        j = self.get_index(r"\s*\*{3,}", istart=i)
+        return self.lines[j + 1]
+
+    def get_natoms(self):
         for line in self.lines:
             m = re.search(self.restrs['natoms'],
                           line)
             if m:
-                self.data['natoms'] = natoms = int(m.group('natoms'))
+                natoms = int(m.group('natoms'))
                 break
+        return natoms
+
+    def read(self):
+        natoms = self.get_natoms()
+        self.data['natoms'] = natoms
+        self.data['inp_parm_line'] = self.get_input_parameter_line()
 
         for i, line in enumerate(self.lines):
             # program_version
@@ -58,10 +81,10 @@ class Reader:
                 m = re.search(self.restrs['program_version'], line)
                 if m:
                     self.data['program_version'] = m.group('program_version')
-                    continue
+                    #continue
 
             # atom_positions, atom_labels
-            if self.data.get('atom_positions') is None:
+            elif self.data.get('atom_positions') is None:
                 m = re.search(self.restrs['positions_begin'], line)
                 if m:
                     symbols = []
@@ -73,18 +96,19 @@ class Reader:
                     symbols = np.asarray(symbols)
                     self.data['atom_positions'] = np.array(positions, float)
                     self.data['atom_labels'] = np.array(symbols)
-                    continue
+                    #continue
 
-            # total_energy 
-            if self.data.get('energy_total') is None:
+            # total_energy
+            elif self.data.get('energy_total') is None:
                 m = re.search(self.restrs['energy_total'], line)
                 if m:
-                    self.data['energy_total'] = (float(m.group('energy_total')) *
-                                                       self.unit2ase[m.group('unit').lower()])
-                    continue
+                    self.data['energy_total'] = (
+                        float(m.group('energy_total')) *
+                        self.unit2ase[m.group('unit').lower()])
+                    #continue
 
             # forces
-            if self.data.get('atom_forces') is None:
+            elif self.data.get('atom_forces') is None:
                 m = re.search(self.restrs['forces_begin'], line)
                 if m:
                     atom_indices = []
@@ -96,22 +120,23 @@ class Reader:
                                    self.unit2ase[tmp[7].lower()]]
                     forces = np.array(forces).reshape(natoms, 3)
                     self.data['atom_forces'] = forces
-                    continue
+                    #continue
 
             # eigenvalues
-            if self.data.get('eigenvalues_values') is None:
+            elif self.data.get('eigenvalues_values') is None:
                 m = re.search(self.restrs['eigenvalues_begin'], line)
                 if m:
-                    if 'ALPHA' in line: # spin polarized calculation
-                        eigs_alpha = np.array(self.lines[i+1].split(), float)
-                        eigs_beta = np.array(self.lines[i+5].split(), float)
-                        eigs = np.vstack([eigs_alpha,
-                                          eigs_beta]).reshape(2,1,-1)
+                    if 'ALPHA' in line:  # spin polarized calculation
+                        eigs_a = self._rep2bl(i + 1, float)
+                    elif 'BETA' in line:
+                        eigs_b = self._rep2bl(i + 1, float)
+                        eigs = np.array([eigs_a, eigs_b]).reshape(2, 1, -1)
                         self.data['eigenvalues_values'] = eigs
                     else:
-                        eigs = np.array(self.lines[i+1].split(), float).reshape(1, 1, -1)
+                        eigs = np.array(self._rep2bl(i + 1,
+                                                     float)).reshape(1, 1, -1)
                         self.data['eigenvalues_values'] = eigs
-                    continue
+                    #continue
 
         self.atoms = Atoms(self.data['atom_labels'],
                            positions=self.data['atom_positions'])
@@ -119,11 +144,13 @@ class Reader:
 
 if __name__ == '__main__':
     import sys
-    if len(sys.argv)==2:
+    if len(sys.argv) == 2:
         fname = sys.argv[1]
     else:
         fname = 'O2.out'
 
     r = Reader(fname)
+    i = r.get_index(r"CALCULATION DONE:")
+    print('line number {0}| '.format(i) + r.lines[i])
     for key, val in r.data.items():
         print(key, val)
