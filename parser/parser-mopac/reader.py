@@ -60,7 +60,7 @@ class Reader:
         """
         x = []
         while not self.lines[j].isspace():  # continue until a blank line
-            x.append([fun(e) for e in self.lines[j].split()])
+            x += [fun(e) for e in self.lines[j].split()]
             j += 1
         return x
 
@@ -181,16 +181,22 @@ class Reader:
         if eigs is not None:
             occs = np.zeros(eigs.shape, float)
             nspin = eigs.shape[0]
+            self.data['eigenvalues_kpoints'] = np.zeros((1, 3))  # Gamma only
             if nspin == 2:
                 n_a = self.data.get('n_alpha')
                 n_b = self.data.get('n_beta')
                 occs[0, 0, :n_a] = 1.0
                 occs[1, 0, :n_b] = 1.0
+                self.data['energy_reference_highest_occupied'] = np.array(
+                (eigs[0, 0, n_a - 1], eigs[1, 0, n_b -1]))
             else:
                 n_f = self.data.get('n_filled')
                 occs[0, 0, :n_f] = 1.0
+                self.data['energy_reference_highest_occupied'] = np.array(
+                (eigs[0, 0, n_f - 1],))
 
             self.data['eigenvalues_occupation'] = occs
+
 
         if self.data.get('inp_parm_line') is not None:
             inp_parm_line = self.data.get('inp_parm_line')
@@ -210,11 +216,17 @@ class Reader:
                     self.data['x_mopac_method'] = method
                     break
 
+    def __getattr__(self, name):
+        return self.data.get(name)
+
+    def __contains__(self, name):
+        return name in self.data
+
 if __name__ == '__main__':
     import sys
     fname = sys.argv[1]
-
     r = Reader(fname)
+    print(r.eigenvalues_values.shape)
 #    i = r.get_index(r"CALCULATION DONE:")
 #    print('line number {0}| '.format(i) + r.lines[i])
     print('printing r.data')
