@@ -1,0 +1,96 @@
+from __future__ import division
+import os
+from contextlib import contextmanager
+import numpy as np
+import setup_paths
+from nomadcore.unit_conversion.unit_conversion import convert_unit as cu
+from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
+from nomadcore.parser_backend import JsonParseEventsWriterBackend
+from reader import Reader
+
+
+@contextmanager
+def open_section(p, name):
+    gid = p.openSection(name)
+    yield gid
+    p.closeSection(name, gid)
+
+
+def c(value, unit=None):
+    """ Dummy function for unit conversion"""
+    return cu(value, unit)
+
+
+parser_info = {"name": "parser_mopac", "version": "1.0"}
+path = '../../../../nomad-meta-info/meta_info/nomad_meta_info/' +\
+        'mopac.nomadmetainfo.json'
+metaInfoPath = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), path))
+
+metaInfoEnv, warns = loadJsonFile(filePath=metaInfoPath,
+                                  dependencyLoader=None,
+                                  extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS,
+                                  uri=None)
+
+
+def parse(filename):
+    p = JsonParseEventsWriterBackend(metaInfoEnv)
+    o = open_section
+    r = Reader(filename)
+    p.startedParsingSession(filename, parser_info)
+
+    with o(p, 'section_run'):
+        p.addValue('program_name', 'MOPAC')
+        p.addValue('program_version', r.program_version)
+        with o(p, 'section_system') as system_gid:
+            p.addArrayValues('atom_labels', r.atom_labels)
+            p.addArrayValues('atom_positions', c(r.atom_positions,
+                                                 'angstrom'))
+            pbc = np.array((0, 0, 0), bool)
+            p.addArrayValues('configuration_periodic_dimensions', pbc)
+        with o(p, 'section_sampling_method'):
+            p.addValue('ensemble_type', 'NVE')
+        with o(p, 'section_frame_sequence'):
+            pass
+        with o(p, 'section_method') as method_gid:
+#            p.addValue('electronic_structure_method',
+#                       'semi-emperical: ' + r.x_mopac_method)
+            p.addValue('x_mopac_method', r.x_mopac_method)
+#            p.addValue('scf_threshold_energy_change',
+#                       c(r.scf_threshold_energy_changer, 'hartree'))
+            if 'spin_target_multiplicity' in r:
+                p.addRealValue('spin_target_multiplicity',
+                               r.spin_target_multiplicity)
+        with o(p, 'section_single_configuration_calculation'):
+            p.addValue('single_configuration_calculation_to_system_ref',
+                       system_gid)
+            p.addValue('single_configuration_to_calculation_method_ref',
+                       method_gid)
+            p.addRealValue('energy_total', c(r.energy_total, 'eV'))
+            if 'x_mopac_fhof' in r:
+                p.addRealValue('x_mopac_fhof', c(r.x_mopac_fhof, 'eV'))
+            if 'electronic_kinetic_energy' in r:
+                p.addRealValue('electronic_kinetic_energy',
+                               c(r.electronic_kinetic_energy, 'eV'))
+            if 'atom_forces' in r:
+                p.addArrayValues('atom_forces',
+                                 c(r.atom_forces, 'eV/angstrom'))
+            if 'energy_reference_highest_occupied' in r:
+                p.addArrayValues('energy_reference_highest_occupied',
+                               c(r.energy_reference_highest_occupied, 'eV'))
+            with o(p, 'section_eigenvalues'):
+                if 'eigenvalues_values' in r:
+                    p.addValue('eigenvalues_kind', 'normal')
+                    p.addArrayValues('eigenvalues_values',
+                                     c(r.eigenvalues_values, 'eV'))
+                    p.addArrayValues('eigenvalues_kpoints',
+                                     r.eigenvalues_kpoints)
+                if 'eigenvalues_occupation' in r:
+                    p.addArrayValues('eigenvalues_occupation',
+                                     r.eigenvalues_occupation)
+    p.finishedParsingSession("ParseSuccess", None)
+
+if __name__ == '__main__':
+    import sys
+    filename = sys.argv[1]
+    parse(filename)
