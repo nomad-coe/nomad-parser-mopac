@@ -9,6 +9,10 @@ class Reader:
                'PM6-DH2', 'PM6-DH2X', 'PM6-D3H4', 'PM6-D3H4X', 'PMEP', 'PM7',
                'PM7-TS', 'RM1']
 
+    multiplicities = {'singlet': 1, 'doublet': 2, 'triplet': 3, 'quartet': 4,
+                      'quintet': 5, 'sextet': 6, 'septet': 7, 'octet': 8,
+                      'nonoet': 9}
+
     def __init__(self, filename):
 
         self.unit2ase = {  # convert to ase units (eV, Angstrom)
@@ -194,8 +198,12 @@ class Reader:
                 structure_optimization = False
             else:
                 structure_optimization = True
-
             self.data['x_mopac_optimization'] = structure_optimization
+
+            for multiplicity, value in self.multiplicities.items():
+                if multiplicity in [p.lower() for p in inp_parm_line.split()]:
+                    self.data['spin_target_multiplicity'] = value
+                    break
 
             for method in self.methods:
                 if method in inp_parm_line:
