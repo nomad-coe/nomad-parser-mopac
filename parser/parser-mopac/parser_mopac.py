@@ -53,9 +53,8 @@ def parse(filename):
         with o(p, 'section_frame_sequence'):
             pass
         with o(p, 'section_method') as method_gid:
-#            p.addValue('electronic_structure_method',
-#                       'semi-emperical: ' + r.x_mopac_method)
             p.addValue('x_mopac_method', r.x_mopac_method)
+            p.addValue('x_mopac_keyword_line', r.inp_parm_line)
 #            p.addValue('scf_threshold_energy_change',
 #                       c(r.scf_threshold_energy_changer, 'hartree'))
             if 'spin_target_multiplicity' in r:
