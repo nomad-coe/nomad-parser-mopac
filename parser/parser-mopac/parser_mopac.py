@@ -57,6 +57,7 @@ def parse(filename):
         with o(p, 'section_method') as method_gid:
             p.addValue('x_mopac_method', r.x_mopac_method)
             p.addValue('x_mopac_keyword_line', r.inp_parm_line)
+            p.addRealValue('total_charge', r.total_charge)
 #            p.addValue('scf_threshold_energy_change',
 #                       c(r.scf_threshold_energy_changer, 'hartree'))
             if 'spin_target_multiplicity' in r:

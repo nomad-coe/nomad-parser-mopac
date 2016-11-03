@@ -51,7 +51,9 @@ class Reader:
             'spin_S2':
             re.compile(r"\(S\*\*2\)\s*=\s*(?P<spin_S2>[0-9.]+)"),
             'time_calculation':
-            re.compile(r"TOTAL\s*JOB\s*TIME:\s*(?P<time_calculation>[0-9.]+)\s*")
+            re.compile(r"TOTAL\s*JOB\s*TIME:\s*(?P<time_calculation>[0-9.]+)\s*"),
+            'total_charge':
+            re.compile(r"\s*\**\s*CHARGE\s*ON\s*SYSTEM\s*=\s*(?P<total_charge>[0-9]+)")
 
         }
         self.read()
@@ -106,6 +108,11 @@ class Reader:
                 m = re.search(self.restrs['program_version'], line)
                 if m:
                     self.data['program_version'] = m.group('program_version')
+
+            if self.data.get('total_charge') is None:
+                m = re.search(self.restrs['total_charge'], line)
+                if m:
+                    self.data['total_charge'] = int(m.group('total_charge'))
 
             # atom_positions, atom_labels
             if self.data.get('atom_positions') is None:
@@ -195,6 +202,8 @@ class Reader:
 
     def calculate_and_transform(self):
         # setup occupations, and homo, lumo, somo
+        if self.data.get('total_charge') is None:
+            self.data['total_charge'] = 0
         eigs = self.data.get('eigenvalues_values')
         if eigs is not None:
             occs = np.zeros(eigs.shape, float)
