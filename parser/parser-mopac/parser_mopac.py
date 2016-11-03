@@ -48,6 +48,8 @@ def parse(filename):
                                                  'angstrom'))
             pbc = np.array((0, 0, 0), bool)
             p.addArrayValues('configuration_periodic_dimensions', pbc)
+            if 'number_of_electrons' in r:
+                p.addArrayValues('number_of_electrons', r.number_of_electrons)
         with o(p, 'section_sampling_method'):
             p.addValue('ensemble_type', 'NVE')
         with o(p, 'section_frame_sequence'):
@@ -77,6 +79,12 @@ def parse(filename):
             if 'energy_reference_highest_occupied' in r:
                 p.addArrayValues('energy_reference_highest_occupied',
                                c(r.energy_reference_highest_occupied, 'eV'))
+            if 'spin_S2' in r:
+                p.addRealValue('spin_S2', r.spin_S2)
+
+            if 'time_calculation' in r:
+                p.addRealValue('time_calculation', r.time_calculation)
+
             with o(p, 'section_eigenvalues'):
                 if 'eigenvalues_values' in r:
                     p.addValue('eigenvalues_kind', 'normal')
@@ -87,6 +95,7 @@ def parse(filename):
                 if 'eigenvalues_occupation' in r:
                     p.addArrayValues('eigenvalues_occupation',
                                      r.eigenvalues_occupation)
+
     p.finishedParsingSession("ParseSuccess", None)
 
 if __name__ == '__main__':

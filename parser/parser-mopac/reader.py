@@ -11,7 +11,7 @@ class Reader:
 
     multiplicities = {'singlet': 1, 'doublet': 2, 'triplet': 3, 'quartet': 4,
                       'quintet': 5, 'sextet': 6, 'septet': 7, 'octet': 8,
-                      'nonoet': 9}
+                      'nonet': 9}
 
     def __init__(self, filename):
 
@@ -33,7 +33,7 @@ class Reader:
             'natoms':
             re.compile(r"\s*Empirical\s*Formula:.*=\s*(?P<natoms>[0-9]+)"),
             'positions_begin':
-            re.compile(r"\s*ATOM\s*CHEMICAL\s*X"),
+            re.compile(r"\s*CARTESIAN\s*COORDINATES"),
             'energy_total':
             re.compile(r"\s*TOTAL\s*ENERGY\s*=\s*(?P<energy_total>[0-9.+-]+)\s*(?P<unit>[a-zA-Z]+)"),
             'x_mopac_fhof':  # final heat of formation
@@ -47,7 +47,12 @@ class Reader:
             'n_alpha':
             re.compile(r"NO.\s*OF\s*ALPHA\s*ELECTRONS\s*=\s*(?P<n_alpha>[0-9]+)"),
             'n_beta':
-            re.compile(r"NO.\s*OF\s*BETA\s*ELECTRONS\s*=\s*(?P<n_beta>[0-9]+)")
+            re.compile(r"NO.\s*OF\s*BETA\s*ELECTRONS\s*=\s*(?P<n_beta>[0-9]+)"),
+            'spin_S2':
+            re.compile(r"\(S\*\*2\)\s*=\s*(?P<spin_S2>[0-9.]+)"),
+            'time_calculation':
+            re.compile(r"TOTAL\s*JOB\s*TIME:\s*(?P<time_calculation>[0-9.]+)\s*")
+
         }
         self.read()
         self.calculate_and_transform()
@@ -106,15 +111,17 @@ class Reader:
             if self.data.get('atom_positions') is None:
                 m = re.search(self.restrs['positions_begin'], line)
                 if m:
-                    symbols = []
-                    positions = []
-                    for sline in self.lines[i + 3: i + 3 + natoms]:
-                        tmp = sline.split()
-                        symbols.append(tmp[1])
-                        positions.append([tmp[2], tmp[4], tmp[6]])
-                    symbols = np.asarray(symbols)
-                    self.data['atom_positions'] = np.array(positions, float)
-                    self.data['atom_labels'] = np.array(symbols)
+                    if 'ATOM' not in self.lines[i + 2]:
+                        begin = 2
+                        symbols = []
+                        positions = []
+                        for l in self.lines[i + begin: i + begin + natoms]:
+                            vals = l.split()
+                            symbols.append(vals[1])
+                            positions.append([float(val) for val in vals[2:5]])
+
+                        self.data['atom_labels'] = np.asarray(symbols)
+                        self.data['atom_positions'] = np.asarray(positions)
 
             # total_energy
             if self.data.get('energy_total') is None:
@@ -169,14 +176,25 @@ class Reader:
                         self.data['eigenvalues_values'] = eigs
                     else:
                         eigs = np.array(self.rep2bl(i + 1,
-                                                     float)).reshape(1, 1, -1)
+                                                    float)).reshape(1, 1, -1)
                         self.data['eigenvalues_values'] = eigs
+
+            if self.data.get('spin_S2') is None:
+                m = re.search(self.restrs['spin_S2'], line)
+                if m:
+                    self.data['spin_S2'] = float(m.group('spin_S2'))
+
+            if self.data.get('time_calculation') is None:
+                m = re.search(self.restrs['time_calculation'], line)
+                if m:
+                    self.data['time_calculation'] = float(
+                        m.group('time_calculation'))
 
         self.atoms = Atoms(self.data['atom_labels'],
                            positions=self.data['atom_positions'])
 
     def calculate_and_transform(self):
-        #setup occupations, and homo, lumo, somo
+        # setup occupations, and homo, lumo, somo
         eigs = self.data.get('eigenvalues_values')
         if eigs is not None:
             occs = np.zeros(eigs.shape, float)
@@ -185,18 +203,19 @@ class Reader:
             if nspin == 2:
                 n_a = self.data.get('n_alpha')
                 n_b = self.data.get('n_beta')
+                self.data['number_of_electrons'] = np.array((n_a, n_b), float)
                 occs[0, 0, :n_a] = 1.0
                 occs[1, 0, :n_b] = 1.0
                 self.data['energy_reference_highest_occupied'] = np.array(
-                (eigs[0, 0, n_a - 1], eigs[1, 0, n_b -1]))
+                    (eigs[0, 0, n_a - 1], eigs[1, 0, n_b - 1]))
             else:
                 n_f = self.data.get('n_filled')
+                self.data['number_of_electrons'] = np.array((2 * n_f, ), float)
                 occs[0, 0, :n_f] = 1.0
                 self.data['energy_reference_highest_occupied'] = np.array(
-                (eigs[0, 0, n_f - 1],))
+                    (eigs[0, 0, n_f - 1],))
 
             self.data['eigenvalues_occupation'] = occs
-
 
         if self.data.get('inp_parm_line') is not None:
             inp_parm_line = self.data.get('inp_parm_line')
@@ -231,4 +250,9 @@ if __name__ == '__main__':
 #    print('line number {0}| '.format(i) + r.lines[i])
     print('printing r.data')
     for key, val in r.data.items():
-        print(key, val)
+        if isinstance(val, np.ndarray):
+            print(key, type(val), '| shape:', val.shape)
+            if len(val.flat) <= 40:
+                print(val)
+        else:
+            print(key, val)
