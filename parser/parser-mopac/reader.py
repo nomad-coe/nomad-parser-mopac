@@ -62,8 +62,8 @@ class Reader:
             re.compile(r"NO.\s*OF\s*ALPHA\s*ELECTRONS\s*=\s*(?P<n_alpha>[0-9]+)"),
             'n_beta':
             re.compile(r"NO.\s*OF\s*BETA\s*ELECTRONS\s*=\s*(?P<n_beta>[0-9]+)"),
-            'spin_S2':
-            re.compile(r"\(S\*\*2\)\s*=\s*(?P<spin_S2>[0-9.]+)"),
+            'spin_s2':
+            re.compile(r"\(S\*\*2\)\s*=\s*(?P<spin_s2>[0-9.]+)"),
             'time_calculation':
             re.compile(r"TOTAL\s*JOB\s*TIME:\s*(?P<time_calculation>[0-9.]+)\s*"),
             'total_charge':
@@ -200,10 +200,10 @@ class Reader:
                                                     float)).reshape(1, 1, -1)
                         self.data['eigenvalues_values'] = eigs
 
-            if self.data.get('spin_S2') is None:
-                m = re.search(self.restrs['spin_S2'], line)
+            if self.data.get('spin_s2') is None:
+                m = re.search(self.restrs['spin_s2'], line)
                 if m:
-                    self.data['spin_S2'] = float(m.group('spin_S2'))
+                    self.data['spin_s2'] = float(m.group('spin_s2'))
 
             if self.data.get('time_calculation') is None:
                 m = re.search(self.restrs['time_calculation'], line)

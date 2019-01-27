@@ -80,7 +80,7 @@ def parse(filename):
         with o(p, 'section_single_configuration_calculation'):
             p.addValue('single_configuration_calculation_to_system_ref',
                        system_gid)
-            p.addValue('single_configuration_to_calculation_method_ref',
+            p.addValue('single_configuration_calculation_to_method_ref',
                        method_gid)
             p.addRealValue('energy_total', c(r.energy_total, 'eV'))
             if 'x_mopac_fhof' in r:
@@ -89,13 +89,15 @@ def parse(filename):
                 p.addRealValue('electronic_kinetic_energy',
                                c(r.electronic_kinetic_energy, 'eV'))
             if 'atom_forces' in r:
+                fId = p.openSection('section_atom_forces')
                 p.addArrayValues('atom_forces',
                                  c(r.atom_forces, 'eV/angstrom'))
+                p.closeSection('section_atom_forces', fId)
             if 'energy_reference_highest_occupied' in r:
                 p.addArrayValues('energy_reference_highest_occupied',
                                c(r.energy_reference_highest_occupied, 'eV'))
-            if 'spin_S2' in r:
-                p.addRealValue('spin_S2', r.spin_S2)
+            if 'spin_s2' in r:
+                p.addRealValue('spin_s2', r.spin_s2)
 
             if 'time_calculation' in r:
                 p.addRealValue('time_calculation', r.time_calculation)
