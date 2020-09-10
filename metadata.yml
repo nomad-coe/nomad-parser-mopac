@@ -1,0 +1,7 @@
+code-label: MOPAC
+code-label-style: All in capitals
+code-url: http://openmopac.net/
+parser-dir-name: dependencies/parsers/mopac/
+parser-git-url: https://gitlab.mpcdf.mpg.de/nomad-lab/parser-mopac
+parser-specific: ''
+table-of-files: ''
