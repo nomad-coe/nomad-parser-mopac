@@ -36,16 +36,16 @@ def test_basic(parser):
 
     parser.parse('tests/data/O2.out', archive, None)
 
-    sec_run = archive.section_run[0]
-    assert sec_run.program_version == '15.347L'
+    sec_run = archive.run[0]
+    assert sec_run.program.version == '15.347L'
 
-    sec_system = archive.section_run[0].section_system[0]
-    assert sec_system.atom_positions[0][1].magnitude == approx(3e-10)
-    assert sec_system.atom_labels == ['O', 'O']
+    sec_system = archive.run[0].system[0]
+    assert sec_system.atoms.positions[0][1].magnitude == approx(3e-10)
+    assert sec_system.atoms.labels == ['O', 'O']
 
-    sec_scc = sec_run.section_single_configuration_calculation[0]
-    assert sec_scc.energy_total.magnitude == approx(-9.40492697e-17)
-    assert sec_scc.atom_forces[1][2].magnitude == approx(-1.0555523514531733e-08)
+    sec_scc = sec_run.calculation[0]
+    assert sec_scc.energy.total.value.magnitude == approx(-9.40492697e-17)
+    assert sec_scc.forces.total.value[1][2].magnitude == approx(-1.0555523514531733e-08)
 
 
 def test_1(parser):
@@ -53,8 +53,8 @@ def test_1(parser):
 
     parser.parse('tests/data/C6H6.out', archive, None)
 
-    sec_system = archive.section_run[0].section_system[0]
-    assert sec_system.atom_labels[6] == 'H'
+    sec_system = archive.run[0].system[0]
+    assert sec_system.atoms.labels[6] == 'H'
 
-    sec_scc = archive.section_run[0].section_single_configuration_calculation[0]
-    assert sec_scc.energy_total.magnitude == approx(-1.30987804e-16)
+    sec_scc = archive.run[0].calculation[0]
+    assert sec_scc.energy.total.value.magnitude == approx(-1.30987804e-16)
